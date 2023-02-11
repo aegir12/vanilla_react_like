@@ -1,6 +1,10 @@
 function setStateWrapper(__holder) {
   return function setState(state) {
-    __holder.render(state);
+    let newState = state;
+    if (typeof state === "function") {
+      newState = state(this.state);
+    }
+    __holder.render(newState);
   };
 }
 
