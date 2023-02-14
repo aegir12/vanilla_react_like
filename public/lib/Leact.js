@@ -84,7 +84,11 @@ export function useState(initialValue) {
   const state = _parent.states[curIdx];
 
   function setState(value) {
-    _parent.states[curIdx] = value;
+    let newState = value;
+    if (typeof value === "function") {
+      newState = value( _parent.states[curIdx]);
+    }
+    _parent.states[curIdx] = newState;
     // call render
     const oldRendered = _parent.rendered;
 
