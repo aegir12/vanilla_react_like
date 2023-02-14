@@ -1,9 +1,9 @@
-import {} from "../lib/Leact.js"
+import Leact from "../lib/Leact.js";
 
 function App() {
-  const [state, setState] = useState(1)
+  const [state, setState] = Leact.useState(1);
 
-  return createElement("div", {}, "App");
+  return Leact.createElement("div", {}, "App");
 }
 
 export default App;
