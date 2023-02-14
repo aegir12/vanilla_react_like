@@ -34,22 +34,38 @@ function renderComponent(type, props, children) {
 }
 
 function _createElement(type, props, children) {
-  return {
+  const element = {
     type,
     props,
     states: {},
+    effects: {},
     children,
     stateIdx: -1,
+    effectIdx: -1,
     componentIdx: -1,
     components: {},
-    render: () => {
-      if (typeof type === "string") {
-        return renderElement(type, props, children);
-      } else {
-        return renderComponent(type, props, children);
-      }
-    },
+    listeners: [],
   };
+
+  element.render = () => {
+    parent = element;
+    parent.componentIdx = -1;
+    parent.stateIdx = -1;
+    parent.effectIdx = -1;
+    parent.listeners = [];
+
+    if (typeof type === "string") {
+      element.rendered = renderElement(type, element.props, element.children);
+    } else {
+      element.rendered = renderComponent(type, element.props, element.children);
+    }
+    setTimeout(() => {
+      element.listeners.forEach((l) => l());
+    });
+    return parent.rendered;
+  };
+
+  return element;
 }
 
 /**
@@ -58,46 +74,62 @@ function _createElement(type, props, children) {
 const root = { componentIdx: -1, components: {} };
 
 export function useState(initialValue) {
-  console.log("parent", parent);
-  console.log("componentIdx: ", parent.componentIdx);
+  const _parent = parent;
+  _parent.stateIdx += 1;
+  const curIdx = _parent.stateIdx;
 
-  parent.stateIdx += 1;
-  const curIdx = parent.stateIdx;
-
-  if (!parent.states[curIdx]) {
-    parent.states[curIdx] = initialValue;
+  if (!_parent.states[curIdx]) {
+    _parent.states[curIdx] = initialValue;
   }
-  const state = parent.states[curIdx];
+  const state = _parent.states[curIdx];
 
   function setState(value) {
-    parent.states[curIdx] = value;
+    _parent.states[curIdx] = value;
     // call render
+    const oldRendered = _parent.rendered;
+
+    oldRendered.replaceWith(_parent.render());
   }
 
   return [state, setState];
 }
 
-export function useEffect(params) {}
+function isEq(o1, o2) {
+  if (typeof o1 !== typeof o2) return false;
+
+  if (typeof o1 === "object") {
+    const keys = [...Object.keys(o1), ...Object.keys(o2)];
+
+    return keys.every((key) => o1[key] === o2[key]);
+  }
+  return o1 === o2;
+}
+
+export function useEffect(func, deps) {
+  const _parent = parent;
+  _parent.effectIdx += 1;
+  const curIdx = _parent.effectIdx;
+  _parent.listeners.push(() => {
+    if (!deps || !isEq(_parent.effects[curIdx], deps)) {
+      func();
+    }
+    _parent.effects[curIdx] = deps;
+  });
+}
 
 let parent = root;
 export function createElement(type, props, children) {
-  console.log("parent", parent);
   parent.componentIdx += 1;
-  console.log("componentIdx: ", parent.componentIdx, type);
+
   const curIdx = parent.componentIdx;
   if (!parent.components[curIdx]) {
     parent.components[curIdx] = _createElement(type, props, children);
   }
   const element = parent.components[curIdx];
+  element.props = props;
+  element.children = children;
 
-  function render() {
-    parent = element;
-    parent.componentIdx = -1;
-    parent.stateIdx = -1;
-    return element.render();
-  }
-
-  return { render };
+  return element;
 }
 
 export function renderDom(element, component) {
